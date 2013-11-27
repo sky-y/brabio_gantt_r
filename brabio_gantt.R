@@ -32,6 +32,7 @@
 
 library(ggplot2)
 library(reshape)
+library(scales)
 
 #
 # 日本語をggplotで使えるようにする設定
@@ -39,7 +40,10 @@ library(reshape)
 
 ## Mac用フォントの設定
 # 参考: http://kohske.wordpress.com/2011/02/26/using-cjk-fonts-in-r-and-ggplot2/
-quartzFonts(HiraKaku=quartzFont(rep("HiraKakuProN-W3", 4)))
+if (Sys.info()[['sysname']] == "Darwin") {
+	quartzFonts(HiraKaku=quartzFont(rep("HiraKakuProN-W3", 4)))
+}
+
 
 ## カスタムテーマの設定
 # 参考: http://d.hatena.ne.jp/triadsou/20100528/1275042816
@@ -48,8 +52,7 @@ quartzFonts(HiraKaku=quartzFont(rep("HiraKakuProN-W3", 4)))
 my_theme_bw <- function (base_size = 25, base_family = "") {
   theme_bw(base_size = base_size, base_family = base_family) %+replace%
     theme(
-      axis.text.x = element_text(angle=45, vjust = 0.5), # x軸のテキストを45度傾ける
-      legend.position="none" # 凡例(legend)を削除する
+      axis.text.x = element_text(angle=45, vjust = 0.5) # x軸のテキストを45度傾ける
     )
 }
 
@@ -57,8 +60,7 @@ my_theme_bw <- function (base_size = 25, base_family = "") {
 my_theme_gray <- function (base_size = 25, base_family = "") {
   theme_gray(base_size = base_size, base_family = base_family) %+replace%
     theme(
-      axis.text.x = element_text(angle=45, vjust = 0.5), # x軸のテキストを45度傾ける
-      legend.position="none" # 凡例(legend)を削除する
+      axis.text.x = element_text(angle=45, vjust = 0.5) # x軸のテキストを45度傾ける
     )
 }
 
@@ -86,37 +88,46 @@ read.brabio.csv <- function (filename = "") {
   return (mdfr)
 }
 
+
+#
+# Brabio CSVからガントチャートをプロットする
+#
+plot.brabio.gantt <- function (input.csv, output, is.output = FALSE, theme.function = my_theme_gray) {
+	
+	## 実行
+	mdfr <- read.brabio.csv(input.csv) 
+	
+	## グラフをプロット
+	base.plot <- ggplot(mdfr, aes(as.Date(value, "%Y/%m/%d"), name, colour = colour)) + 
+			      geom_line(size = 6) +
+				  xlab("") + ylab("") +
+				  scale_x_date(labels = date_format("%Y年%m月")) + theme(legend.position="none")
+				  
+	if (is.output) {
+	  # 画像を出力する場合
+	  my.plot <- base.plot + theme.function()
+	  ggsave(output, base.plot, family="Japan1GothicBBB")
+	} else {
+	  # 直接グラフを表示する場合
+	  my.plot <- base.plot + theme.function(base_family = "HiraKaku")
+	}
+	
+	return (my.plot)
+}
+
+
 #
 # main
 #
 
-## 設定
-
 # ファイル名を指定
 input.csv <- "brabio_export.csv" #入力(CSV)
 output <- "brabio_gantt.pdf" # 出力(形式は拡張子で自動判別してくれる)
+is.output = TRUE # 画像を出力する場合はTRUEに、直接グラフを出力する場合はFALSEにする
+theme.function <- my_theme_gray # テーマを指定
 
-is.output = FALSE # 画像を出力する場合はTRUEにする
-theme.function = my_theme_gray # テーマ関数を指定
+myplot <- plot.brabio.gantt(input.csv = input.csv, output = output, is.output = is.output, theme.function = theme.function)
 
-## 実行
-mdfr <- read.brabio.csv(input.csv) 
-
-## グラフをプロット
-if (is.output) {
-  # 画像を出力する場合
-  p <- ggplot(mdfr, aes(as.Date(value, "%Y/%m/%d"), name, colour = colour)) + 
-    geom_line(size = 6) +
-    xlab("") + ylab("") + 
-    theme.function()
-  
-  ggsave(output, p, family="Japan1GothicBBB")
-} else {
-  # 設定だけを読み込ませる場合
-  # sourceしただけでは自動でプロットされないので、以下をコピーしてコンソールに貼り付け・実行する
-  ggplot(mdfr, aes(as.Date(value, "%Y/%m/%d"), name, colour = colour)) + 
-    geom_line(size = 6) +
-    xlab("") + ylab("") + 
-    theme.function(base_family = "HiraKaku")
-}
-
+# 設定だけを読み込ませる場合
+# sourceしただけでは自動でプロットされないので、以下をコピーしてコンソールに貼り付け・実行する
+myplot
